@@ -9,6 +9,6 @@ Regex to remove PHP4 style object constructor to make them PHP7 ready
 
 replaced by
 
-\1\2\3\4__construct\5
+`\1\2\3\4__construct\5`
 
 where \1, etc., represent group capture (i.e., copy and paste the parts between ordinary parentheses).
