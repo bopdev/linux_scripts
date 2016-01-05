@@ -1,0 +1,46 @@
+#!/bin/bash -e
+#adds local site to var/www
+#uses vhost
+#put this in usr/bin and make sure permissions are set suitably.
+
+if [[ ! -z $1 ]] && [[ $1 =~ ^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-])*(\.[a-zA-Z]{2,})+$ ]]; then
+	
+	url=$1
+	
+else
+	
+	echo 'Site url: '
+	read -e url
+	
+fi
+
+sitedir="/var/www/${url}"
+docroot="/var/www/${url}/public_html"
+
+if [[ -d $sitedir ]]; then
+
+	echo 'Site folder already exists.'
+
+else
+
+	mkdir $sitedir
+	
+fi
+
+chgrp www-data $sitedir
+chmod 755 $sitedir
+
+if [[ -d $docroot ]]; then
+
+	echo 'Document root folder already exists.'
+
+else
+	
+	mkdir $docroot
+
+fi
+
+chgrp www-data $docroot
+chmod 775 $docroot
+
+vhost -d $docroot -s $url
