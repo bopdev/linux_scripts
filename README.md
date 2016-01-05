@@ -5,7 +5,7 @@ Useful scripts for linux (particularly debian-style).
 --
 Regex to remove PHP4 style object constructor to make them PHP7 ready
 
-(class[\s]+)([A-Za-z0-9_]*)([\s]*\{)(?![\s\S]*function[\s]+__construct[\s]*\([\s\S]*\)[\s]*\{[\s\S]*\})([\s\S]*function[\s]+)\2{1}([\s]*\()
+`(class[\s]+)([A-Za-z0-9_]*)([\s]*\{)(?![\s\S]*function[\s]+__construct[\s]*\([\s\S]*\)[\s]*\{[\s\S]*\})([\s\S]*function[\s]+)\2{1}([\s]*\()`
 
 replaced by
 
