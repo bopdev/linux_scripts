@@ -1,0 +1,85 @@
+#!/bin/bash -e
+#put this in /usr/bin and ensure the permissions are suitable.
+#Take note that mysql's root user is called root in here; change it if necessary.
+clear
+echo "============================================"
+echo "WordPress Install Script"
+echo "============================================"
+echo "Database Name: "
+read -e dbname
+echo "Database User: "
+read -e dbuser
+echo "Database Password: "
+read -s dbpass
+echo "Add details? (Y/n)"
+read -e adddbdetails
+if [ "$adddbdetails" != n ]; then
+echo "============================================"
+echo "Adding MySQL Details"
+echo "============================================"
+echo "Root's password: "
+read -s dbrootpass
+mysqlcmd='CREATE DATABASE `'$dbname'`; GRANT ALL ON `'$dbname'` . * TO `'$dbuser'`@`localhost` IDENTIFIED BY "'$dbpass'"; FLUSH PRIVILEGES;'
+mysql --user=root --password=$dbrootpass -s --execute="$mysqlcmd"
+fi
+echo "run wordpress install? (y/n)"
+read -e run
+if [ "$run" == n ] ; then
+exit
+else
+echo "Table prefix: "
+read -e tableprefix
+if [[ $tableprefix =~ ^[a-zA-Z0-9_]+$ ]]; then
+else
+echo "Invalid table prefix format"
+exit
+fi
+echo "============================================"
+echo "A robot is now installing WordPress for you."
+echo "============================================"
+#download wordpress
+curl -O https://wordpress.org/latest.tar.gz
+#unzip wordpress
+tar -zxvf latest.tar.gz
+#change dir to wordpress
+cd wordpress
+#copy file to parent dir
+cp -rf . ..
+#move back to parent dir
+cd ..
+#create uploads folder
+mkdir wp-content/uploads
+#make group www-data
+chgrp -R www-data *
+#change permissions to allow group to edit files
+chmod -R 775 *
+#remove files from wordpress folder
+rm -R wordpress
+#create wp config
+cp wp-config-sample.php wp-config.php
+#fix permissions on wp-config (must be less than 750)
+chgrp -R www-data wp-config.php
+chmod 640 wp-config.php
+#set database details with perl find and replace
+perl -pi -e "s/database_name_here/$dbname/g" wp-config.php
+perl -pi -e "s/username_here/$dbuser/g" wp-config.php
+perl -pi -e "s/password_here/$dbpass/g" wp-config.php
+perl -pi -e "s/'wp_';/'"$tableprefix"';/g" wp-config.php
+
+#set WP salts
+perl -i -pe'
+  BEGIN {
+    @chars = ("a" .. "z", "A" .. "Z", 0 .. 9);
+    push @chars, split //, "!@#$%^&*()-_ []{}<>~\`+=,.;:/?|";
+    sub salt { join "", map $chars[ rand @chars ], 1 .. 64 }
+  }
+  s/put your unique phrase here/salt()/ge
+' wp-config.php
+
+echo "Cleaning..."
+#remove zip file
+rm latest.tar.gz
+echo "========================="
+echo "Installation is complete."
+echo "========================="
+fi
