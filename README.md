@@ -8,7 +8,7 @@ To set installwp and addlocalsite as available terminal functions, copy the file
 To use installwp on another server:
 * log in to that server with ssh
 * run $ bash <(curl -s https://raw.githubusercontent.com/bopdev/linux_scripts/master/installwp)
-* follow the scripts instructions
+* follow the script's instructions
 
 --
 Regex to remove PHP4 style object constructor to make them PHP7 ready
