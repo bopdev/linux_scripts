@@ -1,6 +1,14 @@
 # linux_scripts
 Useful scripts for linux (particularly debian-style).
 
+--
+To set installwp and addlocalsite as available terminal functions, copy the files into the /usr/bin/ directory - you will need sudo permissions to do this.
+
+--
+To use installwp on another server:
+* log in to that server with ssh
+* run $ bash <(curl -s https://raw.githubusercontent.com/bopdev/linux_scripts/master/installwp)
+* follow the scripts instructions
 
 --
 Regex to remove PHP4 style object constructor to make them PHP7 ready
