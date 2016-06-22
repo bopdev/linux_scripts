@@ -56,24 +56,139 @@ else
 	done
 
 	echo "============================================"
-	echo "A robot is now installing WordPress for you."
+	echo "A robot is now downloading WordPress for you."
 	echo "============================================"
 	
 	#download wordpress
 	curl -O https://wordpress.org/latest.tar.gz
+  
 	#unzip wordpress
 	tar -zxvf latest.tar.gz
+  
 	#change dir to wordpress
 	cd wordpress
+  
 	#copy file to parent dir
 	cp -rf . ..
+  
 	#move back to parent dir
 	cd ..
+  
 	#create uploads folder
 	mkdir wp-content/uploads
-	
-	#make group www-data
-	chgrp -R www-data *
+  
+  
+  #add bop theme
+  echo ""
+  echo "============="
+  echo "Add bop-null theme to the install? (master/extras/no)"
+  read -e addtheme
+  
+  
+  themename="bop-null"
+  themeprefix="bop_null"
+  
+  if [ "$addtheme" == extras ] ; then
+    
+    git clone -b extras https://github.com/bopdev/bop-null.git wp-content/themes/$themename
+    rm -rf wp-content/themes/$themename/.git
+    
+  fi
+  if [ "$addtheme" == master ] ; then
+    
+    git clone -b master https://github.com/bopdev/bop-null.git wp-content/themes/$themename
+    rm -rf wp-content/themes/$themename/.git
+    
+  fi
+  
+  if [ "$addtheme" == extras ] || [ "$addtheme" == master ] ; then
+    
+    #Find and replace TODO
+    
+    #Add woocommerce support
+    echo "Add woocommerce support to the theme? (y/n)"
+    read -e addwoo
+    
+    if [ "$addwoo" == y ] ; then
+      
+      mkdir "wp-content/themes/$themename/woocommerce"
+      
+      echo "
+
+//Enable woocommerce support.
+add_action( 'after_setup_theme', function() {
+    add_theme_support( 'woocommerce' );
+}
+" >> wp-content/themes/$themename/inc/theme.php
+      
+    fi  
+    
+    echo ""
+    echo "Do you want to change the name of the theme from $themename? (y/n)"
+    read -e changethemename
+    
+    if [ "$changethemename" == y ] ; then
+      
+      echo "What should the theme name be?"
+      read -e newthemelabel
+      
+      perl -pi -e "s/Theme Name:.*/Theme Name: $newthemelabel/g" wp-content/themes/$themename/style.css
+      
+      echo "Replace text domain ($themename) with?"
+      read -e newthemename
+      
+      find wp-content/themes/$themename -type f | xargs sed -i  's/'$themename'/'$newthemename'/g'
+      
+      mv wp-content/themes/$themename wp-content/themes/$newthemename
+      
+      themename="$newthemename"
+      
+      echo "Replace theme prefix ($themeprefix) with?"
+      read -e newthemeprefix
+      
+      find wp-content/themes/$themename -type f | xargs sed -i  's/'$themeprefix'/'$newthemeprefix'/g'
+      
+    fi
+    
+  fi
+  
+  echo "============"
+  
+  echo ""
+  echo "============"
+  echo "Do you want to set a group name for your files? (y/n)"
+  echo "Note: you may need to for your site to work. If you keep getting HTTP ERR 500, this may be the issue."
+  read -e setgroupname
+  
+  if [ "$setgroupname" == y ] ; then
+    
+    #give group name, default is www-data
+    echo "Do you wish the name of the files/directories group to be set as the debian default www-data (d) or set the name yourself (c)? (d/c)"
+    read -e givegroupname
+    
+    if [ "$givegroupname" == c ] || [ "$givegroupname" == n ] ; then
+      
+      echo "What is your chosen group name. Note: \$USER will give the current user's personal group."
+      
+      read -e group
+      
+      if [ "$group" == "\$USER" ] ; then
+        group="$USER"
+      fi
+      
+    else
+      
+      echo "The group has been set to the debian default of www-data."
+      group="www-data"
+    
+    fi
+    
+    chgrp -R $group *
+  
+  fi
+  
+  echo "============"
+  
 	#change permissions to allow group to edit files
 	chmod -R 775 *
 	
@@ -83,7 +198,9 @@ else
 	cp wp-config-sample.php wp-config.php
 	
 	#fix permissions on wp-config (must be less than 750)
-	chgrp -R www-data wp-config.php
+  if [ "$setgroupname" == y ] ; then
+    chgrp -R $group wp-config.php
+  fi
 	chmod 640 wp-config.php
 	
 	#set database details with perl find and replace
@@ -101,13 +218,45 @@ else
 	  }
 	  s/put your unique phrase here/salt()/ge
 	' wp-config.php
-
+  
+  echo ""
 	echo "Cleaning..."
 	#remove zip file
 	rm latest.tar.gz
 	
-	echo "========================="
-	echo "Installation is complete."
-	echo "========================="
+	echo "====================================================="
+	echo "WordPress has now been fully downloaded and unpacked."
+	echo "====================================================="
 	
+  echo ""
+  echo "WP-CLI is a command line interface for wordpress which allows you to do pretty much anything in wordpress from the terminal."
+  echo "See here: https://wp-cli.org/ for documentation."
+  echo ""
+  echo "Do you want to install WP-CLI locally as well? (y/n)"
+  
+  read -e addwpcli
+  
+  if [ "$addwpcli" == y ] ; then
+    
+    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    
+    mv wp-cli.phar wpcli
+    chmod 700 wpcli
+    
+    echo ""
+    echo "The following output is to check if wp-cli is working."
+    
+    php wpcli --info
+    
+    echo ""
+    echo "As wp-cli is installed only for this install of WordPress, you must use a different command to that in the documentation."
+    echo "Whenever the docs say to start with 'wp', instead use 'php wpcli'."
+    echo ""
+    echo "Also note that only this user ($USER) can use this feature."
+    
+  fi
+  
+  echo ""
+  echo "You still need to install WordPress. You can use wpcli for this with the 'php wpcli core install' command, but this requires a lot of options appended to it, so it may be easier to use the gui provided on the first visit to the site."
+  
 fi
