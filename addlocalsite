@@ -3,44 +3,157 @@
 #uses vhost
 #put this in usr/bin and make sure permissions are set suitably.
 
-if [[ ! -z $1 ]] && [[ $1 =~ ^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-])*(\.[a-zA-Z]{2,})+$ ]]; then
+#fns
+
+function addlocalsiteHelp {
+	echo "Create (or remove) an apache2 website."
+	echo "Inserts the site root into /var/www/, a vhost into apache config, and a host into the /etc/hosts file."
+	echo "Must run as super user (sudo)."
+	echo "Domain must be of typical structure (any level of subdomain is fine)."
+	echo "Avoid using TLDs that are part of the HSTS preloaded list, such as .dev, .new, etc. Use https://hstspreload.org to check."
+	echo ""
+	echo "Typical usage is:"
+	echo "  $ addlocalsite domain.example"
+	echo ""
+	echo "Options are:"
+	echo "-h => This help text."
+	echo "-r => Remove site."
+	echo "-a => Add site. (Unnecessary option)."
+	exit
+}
+
+function addlocalsiteAdd {
+	
+	if [[ ! -z $1 ]] && [[ $1 =~ ^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-])*(\.[a-zA-Z]{2,})+$ ]]; then
+		
+		url=$1
+		
+	else
+		
+		echo "Invalid domain."
+		exit
+		
+	fi
+
+	sitedir="/var/www/${url}"
+	docroot="/var/www/${url}/public_html"
+
+	echo "Adding site directory..."
+	if [[ -d $sitedir ]]; then
+
+		echo 'Site folder already exists.'
+
+	else
+
+		mkdir $sitedir
+		
+	fi
+
+	chgrp www-data $sitedir
+	chmod 755 $sitedir
+
+	echo "Adding document root directory..."
+	if [[ -d $docroot ]]; then
+
+		echo 'Document root folder already exists.'
+
+	else
+		
+		mkdir $docroot
+
+	fi
+
+	chgrp www-data $docroot
+	chmod 775 $docroot
+
+	echo "Adding virtual host..."
+	vhost -d $docroot -s $url
+
+	echo "Site added."
+}
+
+function addlocalsiteRemove {
 	
 	url=$1
 	
-else
+	if [ -z $url ]; then
 	
-	echo 'Site url: '
-	read -e url
+		echo "No domain specified."
 	
+	fi
+	
+	sitedir="/var/www/${url}"
+	ap2conffile="/etc/apache2/sites-available/${url}"
+	hostsfile="/etc/hosts"
+	
+	echo "This will permanently delete:"
+	echo $sitedir
+	echo $ap2conffile
+	echo ""
+	echo "And remove the host entry from ${hostsfile}"
+
+	echo "Removing site directory..."
+	if [ -d $sitedir ]; then
+
+		rm -rf $sitedir
+
+	else
+		
+		echo 'Site folder did not exist.'
+
+	fi
+	
+	echo "Disabling site..."
+	a2dissite $url
+	
+	if [ -f $ap2conffile ]; then
+	  
+	  rm -f $ap2conffile
+	  
+	else
+		
+		echo 'Apache config file did not exist.'
+		
+	fi
+	
+	echo "Modifying hosts file..."
+	if [ -f $hostsfile ]; then
+	  
+	  sed -i "s/\s*127\.0\.0\.1\s*"$url"\s*//g" $hostsfile
+	  
+	else
+		
+		echo 'Could not find debian hosts file.'
+		
+	fi
+	
+	echo 'Site deleted.'
+}
+
+#script
+
+if [ -z $1 ]; then
+  addlocalsiteHelp
 fi
 
-sitedir="/var/www/${url}"
-docroot="/var/www/${url}/public_html"
-
-if [[ -d $sitedir ]]; then
-
-	echo 'Site folder already exists.'
-
-else
-
-	mkdir $sitedir
-	
+if [ "$EUID" -ne 0 ]; then
+  echo "Must run as super user (sudo)."
+  exit
 fi
 
-chgrp www-data $sitedir
-chmod 755 $sitedir
 
-if [[ -d $docroot ]]; then
+while getopts "ha:r:" opt; do
+  case $opt in
+    a)
+      addlocalsiteAdd $OPTARG
+      ;;
+    r)
+      addlocalsiteRemove $OPTARG
+      ;;
+    h)
+      addlocalsiteHelp
+      ;;
+  esac
+done
 
-	echo 'Document root folder already exists.'
-
-else
-	
-	mkdir $docroot
-
-fi
-
-chgrp www-data $docroot
-chmod 775 $docroot
-
-vhost -d $docroot -s $url
+exit
