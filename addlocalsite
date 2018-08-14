@@ -79,6 +79,7 @@ function addlocalsiteRemove {
 	if [ -z $url ]; then
 	
 		echo "No domain specified."
+		exit
 	
 	fi
 	
